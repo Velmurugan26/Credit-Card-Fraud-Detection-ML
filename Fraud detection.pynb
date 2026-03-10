@@ -1,0 +1,248 @@
+# ==========================================================
+# Credit Card Fraud Detection using Machine Learning
+# Complete End-to-End ML Pipeline
+# ==========================================================
+
+# ------------------------------
+# 1. Import Libraries
+# ------------------------------
+
+import pandas as pd
+import numpy as np
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
+
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_curve
+
+from imblearn.over_sampling import SMOTE
+
+
+# ------------------------------
+# 2. Load Dataset
+# ------------------------------
+
+print("Loading dataset...")
+
+df = pd.read_csv("creditcard.csv")
+
+print("Dataset Loaded Successfully")
+
+print("\nFirst 5 Rows:")
+print(df.head())
+
+
+# ------------------------------
+# 3. Dataset Information
+# ------------------------------
+
+print("\nDataset Information:")
+print(df.info())
+
+print("\nChecking Missing Values:")
+print(df.isnull().sum())
+
+
+# ------------------------------
+# 4. Class Distribution
+# ------------------------------
+
+print("\nFraud vs Non-Fraud Distribution:")
+print(df["Class"].value_counts())
+
+plt.figure(figsize=(6,4))
+sns.countplot(x="Class", data=df)
+plt.title("Fraud vs Non-Fraud Transactions")
+plt.show()
+
+
+# ------------------------------
+# 5. Feature and Target Split
+# ------------------------------
+
+X = df.drop("Class", axis=1)
+y = df["Class"]
+
+
+# ------------------------------
+# 6. Train Test Split
+# ------------------------------
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
+)
+
+print("\nTraining samples:", len(X_train))
+print("Testing samples:", len(X_test))
+
+
+# ------------------------------
+# 7. Feature Scaling
+# ------------------------------
+
+scaler = StandardScaler()
+
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+
+# ------------------------------
+# 8. Handle Class Imbalance using SMOTE
+# ------------------------------
+
+print("\nApplying SMOTE to balance dataset...")
+
+smote = SMOTE(random_state=42)
+
+X_train_smote, y_train_smote = smote.fit_resample(X_train, y_train)
+
+print("Before SMOTE:")
+print(y_train.value_counts())
+
+print("\nAfter SMOTE:")
+print(pd.Series(y_train_smote).value_counts())
+
+
+# ------------------------------
+# 9. Train Models
+# ------------------------------
+
+print("\nTraining Models...")
+
+# Logistic Regression
+lr = LogisticRegression(max_iter=1000)
+lr.fit(X_train_smote, y_train_smote)
+lr_pred = lr.predict(X_test)
+
+# Decision Tree
+dt = DecisionTreeClassifier()
+dt.fit(X_train_smote, y_train_smote)
+dt_pred = dt.predict(X_test)
+
+# KNN
+knn = KNeighborsClassifier(n_neighbors=5)
+knn.fit(X_train_smote, y_train_smote)
+knn_pred = knn.predict(X_test)
+
+# Random Forest
+rf = RandomForestClassifier(n_estimators=100)
+rf.fit(X_train_smote, y_train_smote)
+rf_pred = rf.predict(X_test)
+
+
+# ------------------------------
+# 10. Model Evaluation Function
+# ------------------------------
+
+def evaluate_model(model_name, y_true, predictions):
+
+    print("\n===================================")
+    print("Model:", model_name)
+    print("===================================")
+
+    print("\nClassification Report:")
+    print(classification_report(y_true, predictions))
+
+    cm = confusion_matrix(y_true, predictions)
+
+    plt.figure(figsize=(5,4))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+    plt.title(model_name + " Confusion Matrix")
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.show()
+
+
+# ------------------------------
+# 11. Evaluate Models
+# ------------------------------
+
+evaluate_model("Logistic Regression", y_test, lr_pred)
+
+evaluate_model("Decision Tree", y_test, dt_pred)
+
+evaluate_model("KNN", y_test, knn_pred)
+
+evaluate_model("Random Forest", y_test, rf_pred)
+
+
+# ------------------------------
+# 12. ROC Curve (Random Forest)
+# ------------------------------
+
+rf_prob = rf.predict_proba(X_test)[:,1]
+
+fpr, tpr, threshold = roc_curve(y_test, rf_prob)
+
+plt.figure(figsize=(6,5))
+plt.plot(fpr, tpr, label="Random Forest")
+plt.plot([0,1],[0,1],'--')
+
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("ROC Curve - Fraud Detection")
+
+plt.legend()
+
+plt.show()
+
+
+# ------------------------------
+# 13. Model Accuracy Comparison
+# ------------------------------
+
+from sklearn.metrics import accuracy_score
+
+lr_acc = accuracy_score(y_test, lr_pred)
+dt_acc = accuracy_score(y_test, dt_pred)
+knn_acc = accuracy_score(y_test, knn_pred)
+rf_acc = accuracy_score(y_test, rf_pred)
+
+models = ["Logistic Regression","Decision Tree","KNN","Random Forest"]
+scores = [lr_acc, dt_acc, knn_acc, rf_acc]
+
+plt.figure(figsize=(7,5))
+sns.barplot(x=models, y=scores)
+plt.title("Model Accuracy Comparison")
+plt.ylabel("Accuracy")
+plt.show()
+
+
+# ------------------------------
+# 14. Conclusion
+# ------------------------------
+
+print("\n===================================")
+print("PROJECT CONCLUSION")
+print("===================================")
+
+print("""
+This project implemented a Machine Learning pipeline to detect fraudulent
+credit card transactions.
+
+Key Highlights:
+- Severe class imbalance handled using SMOTE
+- Multiple ML models compared
+- Random Forest generally performs best for fraud detection
+- Recall is the most important metric to detect fraudulent transactions
+
+Future Improvements:
+- Deep Learning models
+- Real-time fraud detection system
+- Deployment using Flask or FastAPI
+""")
